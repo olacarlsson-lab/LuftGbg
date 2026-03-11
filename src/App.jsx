@@ -199,8 +199,10 @@ export default function App() {
       // Anropa alltid requestPermission direkt i user gesture
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
+        const sa = window.navigator.standalone;
+        const mq = window.matchMedia('(display-mode: standalone)').matches;
         setPushState('error');
-        setPushMsg(`före: ${before} → efter: ${permission}`);
+        setPushMsg(`perm: ${before}→${permission} | standalone: nav=${sa} mq=${mq}`);
         return;
       }
       setPushState('pending');
