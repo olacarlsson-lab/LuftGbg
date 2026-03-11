@@ -31,9 +31,8 @@ async function saveSubscriptionToGist(sub) {
 }
 
 async function subscribePush() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    throw new Error('Push stöds inte i den här webbläsaren');
-  }
+  if (!('serviceWorker' in navigator)) throw new Error('ServiceWorker saknas');
+  if (!('PushManager' in window)) throw new Error('PushManager saknas');
   const reg = await navigator.serviceWorker.ready;
   const existing = await reg.pushManager.getSubscription();
   if (existing) return existing;
