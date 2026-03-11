@@ -195,24 +195,16 @@ export default function App() {
       return;
     }
     try {
-      const before = Notification.permission;
-      // Anropa alltid requestPermission direkt i user gesture
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        const sa = window.navigator.standalone;
-        const mq = window.matchMedia('(display-mode: standalone)').matches;
-        setPushState('error');
-        setPushMsg(`perm: ${before}→${permission} | standalone: nav=${sa} mq=${mq}`);
-        return;
-      }
+      // På iOS triggas notisbehörigheten av pushManager.subscribe(), inte requestPermission()
       setPushState('pending');
       const sub = await subscribePush();
       await saveSubscriptionToGist(sub.toJSON());
       setPushState('on');
       setPushMsg('Notiser aktiverade!');
     } catch (e) {
+      const perm = 'Notification' in window ? Notification.permission : 'n/a';
       setPushState('error');
-      setPushMsg(e.message || 'Fel: ' + String(e));
+      setPushMsg(`${e.message || String(e)} (perm: ${perm})`);
     }
   };
 
