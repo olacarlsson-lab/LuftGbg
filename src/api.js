@@ -9,9 +9,6 @@ export const fetchAirQualityData = async () => {
         const stationsMap = new Map();
         const parametersSet = new Set();
 
-        // Collect all rain readings per station for 24h sum
-        const rainReadings = new Map(); // stationId -> [{value, time}]
-
         results.forEach(row => {
             const st = row.station;
             const param = row.parameter;
@@ -38,7 +35,6 @@ export const fetchAirQualityData = async () => {
                     });
                 }
 
-                // Combine date + time into a full ISO-like string
                 const fullTime = (row.date && row.time)
                     ? `${row.date}T${row.time}`
                     : (row.time || null);
@@ -50,23 +46,7 @@ export const fetchAirQualityData = async () => {
                 };
 
                 parametersSet.add(param);
-
-                // Collect all rain readings with timestamps
-                if (/^rain$/i.test(param)) {
-                    if (!rainReadings.has(st)) rainReadings.set(st, []);
-                    rainReadings.get(st).push({ value: val, time: fullTime });
-                }
             }
-        });
-
-        // Calculate 24h rain sum per station
-        const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-        stationsMap.forEach((station, id) => {
-            const readings = rainReadings.get(id) || [];
-            const last24h = readings.filter(r => r.time && new Date(r.time).getTime() >= cutoff);
-            station.rain24h = last24h.length > 0
-                ? last24h.reduce((sum, r) => sum + r.value, 0)
-                : null;
         });
 
         return {
@@ -74,7 +54,20 @@ export const fetchAirQualityData = async () => {
             parameters: Array.from(parametersSet).sort()
         };
     } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error("Error fetching air quality data:", error);
         throw error;
     }
+};
+
+// SMHI station "Göteborg A" (71420) — parameter 7 = nederbördsmängd summa 1h
+const SMHI_RAIN_URL = 'https://opendata-download-metobs.smhi.se/api/version/latest/parameter/7/station/71420/period/latest-months/data.json';
+
+export const fetchRain24h = async () => {
+    const response = await fetch(SMHI_RAIN_URL);
+    const data = await response.json();
+    const values = data.value || [];
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    const last24h = values.filter(v => v.date >= cutoff);
+    if (!last24h.length) return null;
+    return last24h.reduce((sum, v) => sum + parseFloat(v.value), 0);
 };

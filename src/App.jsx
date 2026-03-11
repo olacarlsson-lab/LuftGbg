@@ -1,29 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchAirQualityData } from './api';
-
-// ── Rain history (localStorage) ──────────────────────────────────────────────
-const RAIN_KEY = 'femman_rain_readings';
-const H24 = 24 * 60 * 60 * 1000;
-
-function loadRainReadings() {
-  try { return JSON.parse(localStorage.getItem(RAIN_KEY) || '[]'); }
-  catch { return []; }
-}
-
-function recordRainReading(value, timeStr) {
-  if (value == null || !timeStr) return loadRainReadings();
-  const cutoff = Date.now() - H24;
-  const all = loadRainReadings().filter(r => new Date(r.time).getTime() >= cutoff);
-  if (!all.some(r => r.time === timeStr)) all.push({ value, time: timeStr });
-  try { localStorage.setItem(RAIN_KEY, JSON.stringify(all)); } catch {}
-  return all;
-}
-
-function rain24hSum(readings) {
-  if (!readings.length) return null;
-  return readings.reduce((s, r) => s + r.value, 0);
-}
-// ─────────────────────────────────────────────────────────────────────────────
+import { fetchAirQualityData, fetchRain24h } from './api';
 
 const LEVELS = [
   { label: 'Bra',     level: 0, bg: '#dcfce7', text: '#14532d', bar: '#4ade80' },
@@ -84,44 +60,23 @@ function degreesToCompass(deg) {
   return dirs[Math.round(deg / 22.5) % 16];
 }
 
-// Barometer arc: 950–1050 hPa, sweeps 180°
 function Barometer({ hpa }) {
   const MIN = 950, MAX = 1050;
   const clamped = Math.min(MAX, Math.max(MIN, hpa));
   const fraction = (clamped - MIN) / (MAX - MIN);
-  // Arc from 180° to 0° (left to right), needle angle in SVG coords
-  const angleDeg = 180 - fraction * 180; // 180=left(low) → 0=right(high)
+  const angleDeg = 180 - fraction * 180;
   const rad = (angleDeg * Math.PI) / 180;
   const cx = 60, cy = 60, r = 44;
   const nx = cx + r * Math.cos(rad);
   const ny = cy - r * Math.sin(rad);
-
-  // Arc path: semicircle from left to right
   const arcColor = hpa < 1000 ? '#60a5fa' : hpa > 1020 ? '#f59e0b' : '#10b981';
 
   return (
     <svg width="120" height="68" viewBox="0 0 120 68" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Background arc */}
       <path d="M 16 60 A 44 44 0 0 1 104 60" stroke="#e2e8f0" strokeWidth="6" strokeLinecap="round" fill="none"/>
-      {/* Colored fill arc */}
-      <path
-        d={`M 16 60 A 44 44 0 0 1 ${nx.toFixed(2)} ${ny.toFixed(2)}`}
-        stroke={arcColor}
-        strokeWidth="6"
-        strokeLinecap="round"
-        fill="none"
-      />
-      {/* Needle */}
-      <line
-        x1={cx} y1={cy}
-        x2={nx.toFixed(2)} y2={ny.toFixed(2)}
-        stroke="#1e293b"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      {/* Center dot */}
+      <path d={`M 16 60 A 44 44 0 0 1 ${nx.toFixed(2)} ${ny.toFixed(2)}`} stroke={arcColor} strokeWidth="6" strokeLinecap="round" fill="none"/>
+      <line x1={cx} y1={cy} x2={nx.toFixed(2)} y2={ny.toFixed(2)} stroke="#1e293b" strokeWidth="2" strokeLinecap="round"/>
       <circle cx={cx} cy={cy} r="3" fill="#1e293b"/>
-      {/* Labels */}
       <text x="8"  y="68" fontSize="8" fill="#94a3b8" fontFamily="Inter,sans-serif">Lågt</text>
       <text x="86" y="68" fontSize="8" fill="#94a3b8" fontFamily="Inter,sans-serif">Högt</text>
     </svg>
@@ -139,22 +94,21 @@ function latestMeasuredTime(measurements) {
 function cap(str) { return str.charAt(0).toUpperCase() + str.slice(1); }
 
 export default function App() {
-  const [station, setStation] = useState(null);
-  const [rainReadings, setRainReadings] = useState(() => loadRainReadings());
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState(null);
+  const [station, setStation]   = useState(null);
+  const [rain24h, setRain24h]   = useState(null);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState(null);
 
   const load = async () => {
     try {
-      const data = await fetchAirQualityData();
+      const [data, rainSum] = await Promise.all([
+        fetchAirQualityData(),
+        fetchRain24h(),
+      ]);
       const found = data.stations.find(s => /femman/i.test(s.id));
       setStation(found || null);
+      setRain24h(rainSum);
       setError(found ? null : 'Hittade inte Femman-stationen');
-      if (found) {
-        const rainMeas = found.measurements['Rain'];
-        const updated = recordRainReading(rainMeas?.value, rainMeas?.time);
-        setRainReadings(updated);
-      }
     } catch {
       setError('Kunde inte ladda luftdata');
     } finally {
@@ -171,19 +125,17 @@ export default function App() {
   if (loading) return <div className="screen center"><div className="spinner"/></div>;
   if (error || !station) return <div className="screen center"><p className="muted">{error || 'Okänt fel'}</p></div>;
 
-  const quality    = getOverallLevel(station.measurements);
-  const tempVal    = station.measurements['Temperature']?.value;
-  const temp       = tempVal != null ? parseFloat(tempVal).toFixed(1).replace('.', ',') : null;
-  const windSpeed  = station.measurements['Wind_Speed']?.value;
-  const windDir    = station.measurements['Wind_Direction']?.value;
-  const windMs     = windSpeed != null ? parseFloat(windSpeed).toFixed(1).replace('.', ',') : null;
-  const compass    = windDir   != null ? degreesToCompass(windDir) : null;
-  const rainSum    = rain24hSum(rainReadings);
-  const rain       = rainSum != null ? parseFloat(rainSum).toFixed(1).replace('.', ',') : null;
-  const rainHours  = rainReadings.length;
+  const quality     = getOverallLevel(station.measurements);
+  const tempVal     = station.measurements['Temperature']?.value;
+  const temp        = tempVal != null ? parseFloat(tempVal).toFixed(1).replace('.', ',') : null;
+  const windSpeed   = station.measurements['Wind_Speed']?.value;
+  const windDir     = station.measurements['Wind_Direction']?.value;
+  const windMs      = windSpeed != null ? parseFloat(windSpeed).toFixed(1).replace('.', ',') : null;
+  const compass     = windDir   != null ? degreesToCompass(windDir) : null;
+  const rain        = rain24h   != null ? parseFloat(rain24h).toFixed(1).replace('.', ',') : null;
   const pressureVal = station.measurements['Air_Pressure']?.value;
-  const humidity   = station.measurements['Relative_Humidity']?.value;
-  const humidityStr = humidity != null ? Math.round(humidity) : null;
+  const humidity    = station.measurements['Relative_Humidity']?.value;
+  const humidityStr = humidity  != null ? Math.round(humidity) : null;
 
   const measured = latestMeasuredTime(station.measurements);
   const today    = new Date();
@@ -251,7 +203,7 @@ export default function App() {
 
         {rain != null && (
           <div className="metric-tile">
-            <span className="metric-label">Nederbörd {rainHours < 24 ? `(${rainHours}h)` : '24 h'}</span>
+            <span className="metric-label">Nederbörd 24 h</span>
             <div className="metric-value">
               <span className="metric-num">{rain}</span>
               <span className="metric-unit">mm</span>
