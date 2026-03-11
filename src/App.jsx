@@ -1,6 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { fetchAirQualityData } from './api';
 
+// ── Rain history (localStorage) ──────────────────────────────────────────────
+const RAIN_KEY = 'femman_rain_readings';
+const H24 = 24 * 60 * 60 * 1000;
+
+function loadRainReadings() {
+  try { return JSON.parse(localStorage.getItem(RAIN_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function recordRainReading(value, timeStr) {
+  if (value == null || !timeStr) return loadRainReadings();
+  const cutoff = Date.now() - H24;
+  const all = loadRainReadings().filter(r => new Date(r.time).getTime() >= cutoff);
+  if (!all.some(r => r.time === timeStr)) all.push({ value, time: timeStr });
+  try { localStorage.setItem(RAIN_KEY, JSON.stringify(all)); } catch {}
+  return all;
+}
+
+function rain24hSum(readings) {
+  if (!readings.length) return null;
+  return readings.reduce((s, r) => s + r.value, 0);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 const LEVELS = [
   { label: 'Bra',     level: 0, bg: '#dcfce7', text: '#14532d', bar: '#4ade80' },
   { label: 'Okej',    level: 1, bg: '#ecfccb', text: '#365314', bar: '#a3e635' },
@@ -116,6 +140,7 @@ function cap(str) { return str.charAt(0).toUpperCase() + str.slice(1); }
 
 export default function App() {
   const [station, setStation] = useState(null);
+  const [rainReadings, setRainReadings] = useState(() => loadRainReadings());
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
 
@@ -125,6 +150,11 @@ export default function App() {
       const found = data.stations.find(s => /femman/i.test(s.id));
       setStation(found || null);
       setError(found ? null : 'Hittade inte Femman-stationen');
+      if (found) {
+        const rainMeas = found.measurements['Rain'];
+        const updated = recordRainReading(rainMeas?.value, rainMeas?.time);
+        setRainReadings(updated);
+      }
     } catch {
       setError('Kunde inte ladda luftdata');
     } finally {
@@ -148,8 +178,9 @@ export default function App() {
   const windDir    = station.measurements['Wind_Direction']?.value;
   const windMs     = windSpeed != null ? parseFloat(windSpeed).toFixed(1).replace('.', ',') : null;
   const compass    = windDir   != null ? degreesToCompass(windDir) : null;
-  const rainVal    = station.measurements['Rain']?.value;
-  const rain       = rainVal != null ? parseFloat(rainVal).toFixed(1).replace('.', ',') : null;
+  const rainSum    = rain24hSum(rainReadings);
+  const rain       = rainSum != null ? parseFloat(rainSum).toFixed(1).replace('.', ',') : null;
+  const rainHours  = rainReadings.length;
   const pressureVal = station.measurements['Air_Pressure']?.value;
   const humidity   = station.measurements['Relative_Humidity']?.value;
   const humidityStr = humidity != null ? Math.round(humidity) : null;
@@ -220,7 +251,7 @@ export default function App() {
 
         {rain != null && (
           <div className="metric-tile">
-            <span className="metric-label">Nederbörd / h</span>
+            <span className="metric-label">Nederbörd {rainHours < 24 ? `(${rainHours}h)` : '24 h'}</span>
             <div className="metric-value">
               <span className="metric-num">{rain}</span>
               <span className="metric-unit">mm</span>
