@@ -196,16 +196,11 @@ export default function App() {
     }
     try {
       const before = Notification.permission;
-      if (before === 'denied') {
-        setPushState('error');
-        setPushMsg('Blockerat (denied) – gå till iOS Inställningar och aktivera notiser för Luftfemman');
-        return;
-      }
-      // requestPermission måste anropas direkt i user gesture
+      // Anropa alltid requestPermission direkt i user gesture
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
         setPushState('error');
-        setPushMsg(`Nekad (status: ${permission})`);
+        setPushMsg(`före: ${before} → efter: ${permission}`);
         return;
       }
       setPushState('pending');
