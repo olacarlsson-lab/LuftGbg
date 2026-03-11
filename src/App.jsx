@@ -31,8 +31,10 @@ async function saveSubscriptionToGist(sub) {
 }
 
 async function subscribePush() {
-  if (!('serviceWorker' in navigator)) throw new Error('ServiceWorker saknas');
-  if (!('PushManager' in window)) throw new Error('PushManager saknas');
+  const sw = navigator.serviceWorker;
+  const pm = window.PushManager;
+  if (!sw) throw new Error(`SW: ${typeof sw}, PM: ${typeof pm}`);
+  if (!pm) throw new Error(`PushManager saknas (SW: ${typeof sw})`);
   const reg = await navigator.serviceWorker.ready;
   const existing = await reg.pushManager.getSubscription();
   if (existing) return existing;
@@ -182,7 +184,7 @@ export default function App() {
       navigator.serviceWorker.register('/sw.js').then(async (reg) => {
         const sub = await reg.pushManager.getSubscription();
         if (sub) setPushState('on');
-      }).catch(() => {});
+      }).catch(e => console.error('SW reg failed:', e));
     }
   }, []);
 
