@@ -188,17 +188,17 @@ export default function App() {
   }, []);
 
   const handlePushToggle = async () => {
-    if (pushState === 'on') return; // already on — no unsubscribe UI for simplicity
+    if (pushState === 'on') return;
     if (!VAPID_PUBLIC_KEY || !GIST_TOKEN || !GIST_ID) {
       setPushMsg('Notiser ej konfigurerade');
       setPushState('error');
       return;
     }
-    setPushState('pending');
-    setPushMsg('');
     try {
+      // requestPermission måste anropas direkt i user gesture, innan setState/async-kedja
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') throw new Error('Tillåtelse nekad');
+      setPushState('pending');
       const sub = await subscribePush();
       await saveSubscriptionToGist(sub.toJSON());
       setPushState('on');
