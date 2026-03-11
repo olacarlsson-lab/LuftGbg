@@ -1,5 +1,58 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { fetchAirQualityData, fetchRain24h } from './api';
+
+const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || '';
+const GIST_TOKEN       = import.meta.env.VITE_GIST_TOKEN || '';
+const GIST_ID          = import.meta.env.VITE_GIST_ID || '';
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+async function saveSubscriptionToGist(sub) {
+  const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `token ${GIST_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      files: {
+        'subscriptions.json': {
+          content: JSON.stringify({ subscriptions: [sub] }, null, 2),
+        },
+      },
+    }),
+  });
+  if (!res.ok) throw new Error('Kunde inte spara prenumeration');
+}
+
+async function subscribePush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    throw new Error('Push stöds inte i den här webbläsaren');
+  }
+  const reg = await navigator.serviceWorker.ready;
+  const existing = await reg.pushManager.getSubscription();
+  if (existing) return existing;
+  const sub = await reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+  });
+  return sub;
+}
+
+function BellIcon({ on }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+      <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      {on && <line x1="1" y1="1" x2="23" y2="23" stroke="#ef4444"/>}
+    </svg>
+  );
+}
 
 const LEVELS = [
   { label: 'Bra',     level: 0, bg: '#dcfce7', text: '#14532d', bar: '#4ade80' },
@@ -98,6 +151,8 @@ export default function App() {
   const [rain24h, setRain24h]   = useState(null);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
+  const [pushState, setPushState] = useState('idle'); // idle | pending | on | error
+  const [pushMsg, setPushMsg]   = useState('');
 
   const load = async () => {
     try {
@@ -121,6 +176,38 @@ export default function App() {
     const t = setInterval(load, 5 * 60 * 1000);
     return () => clearInterval(t);
   }, []);
+
+  // Register service worker
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then(async (reg) => {
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) setPushState('on');
+      }).catch(() => {});
+    }
+  }, []);
+
+  const handlePushToggle = async () => {
+    if (pushState === 'on') return; // already on — no unsubscribe UI for simplicity
+    if (!VAPID_PUBLIC_KEY || !GIST_TOKEN || !GIST_ID) {
+      setPushMsg('Notiser ej konfigurerade');
+      setPushState('error');
+      return;
+    }
+    setPushState('pending');
+    setPushMsg('');
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') throw new Error('Tillåtelse nekad');
+      const sub = await subscribePush();
+      await saveSubscriptionToGist(sub.toJSON());
+      setPushState('on');
+      setPushMsg('Notiser aktiverade!');
+    } catch (e) {
+      setPushState('error');
+      setPushMsg(e.message || 'Kunde inte aktivera notiser');
+    }
+  };
 
   if (loading) return <div className="screen center"><div className="spinner"/></div>;
   if (error || !station) return <div className="screen center"><p className="muted">{error || 'Okänt fel'}</p></div>;
@@ -149,8 +236,32 @@ export default function App() {
 
       {/* Header */}
       <div className="header">
-        <span className="label">Luftkvalitet vid</span>
-        <h1 className="station-name">Femman</h1>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%', maxWidth: 360 }}>
+          <div>
+            <span className="label">Luftkvalitet vid</span>
+            <h1 className="station-name">Femman</h1>
+          </div>
+          {'Notification' in window && (
+            <button
+              onClick={handlePushToggle}
+              disabled={pushState === 'pending' || pushState === 'on'}
+              title={pushState === 'on' ? 'Notiser aktiverade' : 'Aktivera notiser'}
+              style={{
+                background: 'none', border: 'none', cursor: pushState === 'on' ? 'default' : 'pointer',
+                color: pushState === 'on' ? '#22c55e' : pushState === 'error' ? '#ef4444' : '#94a3b8',
+                padding: '4px', marginTop: 6, borderRadius: 8,
+                opacity: pushState === 'pending' ? 0.5 : 1,
+              }}
+            >
+              <BellIcon on={pushState === 'on'} />
+            </button>
+          )}
+        </div>
+        {pushMsg && (
+          <span style={{ fontSize: 11, color: pushState === 'error' ? '#ef4444' : '#22c55e', marginTop: 2 }}>
+            {pushMsg}
+          </span>
+        )}
       </div>
 
       {/* Air quality status + vertical scale */}

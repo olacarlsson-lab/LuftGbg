@@ -27,6 +27,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+        env:
+          VITE_VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VITE_GIST_TOKEN:       ${{ secrets.GIST_TOKEN }}
+          VITE_GIST_ID:          ${{ secrets.GIST_ID }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
