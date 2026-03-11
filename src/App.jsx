@@ -246,7 +246,7 @@ export default function App() {
             <span className="label">Luftkvalitet vid</span>
             <h1 className="station-name">Femman</h1>
           </div>
-          {'Notification' in window && (
+          {'Notification' in window && (window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches) && (
             <button
               onClick={handlePushToggle}
               disabled={pushState === 'pending' || pushState === 'on'}
