@@ -202,13 +202,20 @@ export default function App() {
       setPushState('error');
       return;
     }
-    const notifPerm = 'Notification' in window ? Notification.permission : 'N/A';
-    if (notifPerm === 'denied') {
+    if ('Notification' in window && Notification.permission === 'denied') {
       setPushState('error');
-      setPushMsg('Notiser blockerade i iOS 26 – beta-bugg');
+      setPushMsg('Blockerat i inställningar – tillåt notiser för sajten');
       return;
     }
     try {
+      if ('Notification' in window && Notification.permission !== 'granted') {
+        const perm = await Notification.requestPermission();
+        if (perm !== 'granted') {
+          setPushState('error');
+          setPushMsg(`Notiser nekades (${perm})`);
+          return;
+        }
+      }
       const sub = await subscribePush();
       setPushState('pending');
       await saveSubscriptionToGist(sub.toJSON());
