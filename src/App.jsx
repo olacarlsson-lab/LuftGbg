@@ -202,17 +202,13 @@ export default function App() {
       setPushState('error');
       return;
     }
-    if (Notification.permission === 'denied') {
-      setPushState('error');
-      setPushMsg('Blockerat i iOS-inställningar');
-      return;
-    }
     try {
       // Safari kräver requestPermission() FÖRST direkt i user gesture, innan subscribe()
+      const before = 'Notification' in window ? Notification.permission : 'N/A';
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
         setPushState('error');
-        setPushMsg('Notiser nekades');
+        setPushMsg(`Nekad (${before}→${permission})`);
         return;
       }
       const sub = await subscribePush();
