@@ -205,7 +205,7 @@ export default function App() {
     const notifPerm = 'Notification' in window ? Notification.permission : 'N/A';
     if (notifPerm === 'denied') {
       setPushState('error');
-      setPushMsg('Notistillstånd blockerat (denied). Kontakta support.');
+      setPushMsg('Notiser blockerade i iOS 26 – beta-bugg');
       return;
     }
     try {
