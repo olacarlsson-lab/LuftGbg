@@ -202,16 +202,16 @@ export default function App() {
       setPushState('error');
       return;
     }
-    if ('Notification' in window && Notification.permission === 'denied') {
-      setPushState('error');
-      setPushMsg('Tillstånd blockerat – se instruktion nedan');
-      return;
-    }
     try {
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
+      const notifPerm = 'Notification' in window ? Notification.permission : 'N/A';
+      let pushPerm = '?';
+      try {
+        const r = await navigator.permissions.query({ name: 'push', userVisibleOnly: true });
+        pushPerm = r.state;
+      } catch {}
+      if (notifPerm === 'denied' && pushPerm === 'denied') {
         setPushState('error');
-        setPushMsg(`Notiser nekades (${permission})`);
+        setPushMsg(`Blockerat: notif=${notifPerm} push=${pushPerm}`);
         return;
       }
       const sub = await subscribePush();
