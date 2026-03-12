@@ -27,7 +27,7 @@ async function saveSubscriptionToGist(sub) {
       },
     }),
   });
-  if (!res.ok) throw new Error('Kunde inte spara prenumeration');
+  if (!res.ok) throw new Error(`Gist-fel ${res.status}`);
 }
 
 async function subscribePush() {
