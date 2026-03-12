@@ -203,14 +203,7 @@ export default function App() {
       return;
     }
     try {
-      // Safari kräver requestPermission() FÖRST direkt i user gesture, innan subscribe()
-      const before = 'Notification' in window ? Notification.permission : 'N/A';
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        setPushState('error');
-        setPushMsg(`Nekad (${before}→${permission})`);
-        return;
-      }
+      // Declarative Web Push (iOS 26): subscribe() hanterar tillstånd direkt — hoppa över requestPermission
       const sub = await subscribePush();
       setPushState('pending');
       await saveSubscriptionToGist(sub.toJSON());
