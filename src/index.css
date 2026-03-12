@@ -35,6 +35,20 @@ html, body, #root {
   gap: 0;
 }
 
+/* ── Offline-banner ──────────────────────── */
+.offline-banner {
+  width: 100%;
+  max-width: 360px;
+  background: #fef9c3;
+  color: #713f12;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  padding: 6px 12px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
 /* ── Header ─────────────────────────────── */
 .header {
   display: flex;
@@ -60,6 +74,22 @@ html, body, #root {
   line-height: 1;
 }
 
+/* ── Ikonknappar ─────────────────────────── */
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  min-height: 30px;
+  transition: background 0.15s;
+}
+.icon-btn:hover { background: #f1f5f9; }
+
 /* ── Status card ─────────────────────────── */
 .status-card {
   width: 100%;
@@ -79,6 +109,40 @@ html, body, #root {
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1;
+}
+
+/* ── Luftkvalitetstiles med sparklines ───── */
+.pollution-grid {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.pollution-tile {
+  background: #f8fafc;
+  border-radius: 20px;
+  padding: 16px 18px 14px;
+}
+
+.pollution-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.trend-arrow {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.sparkline-hint {
+  font-size: 10px;
+  color: #c0ccd8;
+  margin-top: 8px;
 }
 
 /* ── Metrics grid (2-col) ────────────────── */
@@ -169,7 +233,7 @@ html, body, #root {
   color: #94a3b8;
 }
 
-/* ── Date + time ─────────────────────────── */
+/* ── Datum + tid ─────────────────────────── */
 .datetime {
   margin-top: 28px;
   display: flex;
@@ -188,6 +252,30 @@ html, body, #root {
   font-size: 14px;
   font-weight: 400;
   color: #94a3b8;
+}
+
+/* ── Stations-navigationspunkter ─────────── */
+.station-dots {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 28px;
+}
+
+.station-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  background: #e2e8f0;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.station-dot.active {
+  background: #0f172a;
+  transform: scale(1.35);
 }
 
 /* ── Misc ────────────────────────────────── */

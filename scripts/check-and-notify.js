@@ -74,6 +74,19 @@ async function saveGistData(data) {
   });
 }
 
+/** Returnerar true om klockan är 22:00–06:59 i Europe/Stockholm-zonen */
+function isQuietHour() {
+  const hour = parseInt(
+    new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Europe/Stockholm',
+      hour: '2-digit',
+      hour12: false,
+    }).format(new Date()),
+    10
+  );
+  return hour >= 22 || hour < 7;
+}
+
 async function run() {
   const level = await fetchLevel();
   console.log(`Current level: ${level != null ? LEVELS[level] : 'unknown'} (${level})`);
@@ -81,11 +94,16 @@ async function run() {
   const gistData = await loadGistData();
   const { subscriptions, lastLevel } = gistData;
 
-  const isMorning  = MORNING_RUN === 'true';
-  const worsened   = level != null && level >= 2 && (lastLevel == null || level > lastLevel);
-  const shouldSend = isMorning || worsened;
+  const isMorning = MORNING_RUN === 'true';
+  const worsened  = level != null && level >= 2 && (lastLevel == null || level > lastLevel);
 
-  console.log(`Morning: ${isMorning}, Worsened: ${worsened}, Send: ${shouldSend}`);
+  // Timnotiser skickas ej under tysta timmar (22:00–07:00 CET)
+  const quiet     = !isMorning && isQuietHour();
+  const shouldSend = (isMorning || worsened) && !quiet;
+
+  if (quiet) console.log('Tysta timmar (22:00–07:00 CET) – hoppar över timnotis');
+
+  console.log(`Morning: ${isMorning}, Worsened: ${worsened}, Quiet: ${quiet}, Send: ${shouldSend}`);
 
   if (!shouldSend || !subscriptions.length) {
     // Update lastLevel even if not sending
