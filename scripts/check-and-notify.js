@@ -111,7 +111,16 @@ async function run() {
       : 'Luftkvaliteten vid Femman är nu dålig – undvik ansträngande aktiviteter utomhus';
   }
 
-  const payload = JSON.stringify({ title, body, url: 'https://luftfemman.olacarlsson.com' });
+  // Declarative Web Push format (iOS 18.4+/iOS 26) — fungerar även med standard SW-baserad push
+  const payload = JSON.stringify({
+    web_push: 8030,
+    notification: {
+      title,
+      body,
+      navigate: 'https://luftfemman.olacarlsson.com',
+      silent: false,
+    },
+  });
   const active = [];
 
   for (const sub of subscriptions) {

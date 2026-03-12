@@ -31,18 +31,21 @@ async function saveSubscriptionToGist(sub) {
 }
 
 async function subscribePush() {
-  const sw = navigator.serviceWorker;
-  const pm = window.PushManager;
-  if (!sw) throw new Error(`SW: ${typeof sw}, PM: ${typeof pm}`);
-  if (!pm) throw new Error(`PushManager saknas (SW: ${typeof sw})`);
+  const key = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+
+  // Declarative Web Push (iOS 18.4+, iOS 26): window.pushManager utan service worker
+  if (window.pushManager) {
+    const existing = await window.pushManager.getSubscription();
+    if (existing) return existing;
+    return await window.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+  }
+
+  // Standard Web Push via service worker (äldre iOS, desktop)
+  if (!navigator.serviceWorker) throw new Error('Push stöds inte på den här enheten');
   const reg = await navigator.serviceWorker.ready;
   const existing = await reg.pushManager.getSubscription();
   if (existing) return existing;
-  const sub = await reg.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-  });
-  return sub;
+  return await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
 }
 
 function BellIcon({ on }) {

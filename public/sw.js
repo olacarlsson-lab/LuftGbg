@@ -1,13 +1,15 @@
 self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
-  const title = data.title || 'Luftkvalitet Femman';
+  // Stöd både standard {title, body} och Declarative Web Push {web_push:8030, notification:{...}}
+  const notif = data.notification || data;
+  const title = notif.title || 'Luftkvalitet Femman';
   const options = {
-    body: data.body || '',
+    body: notif.body || '',
     icon: '/icon-192.png',
     badge: '/icon-192.png',
     tag: 'luftkvalitet',
     renotify: true,
-    data: { url: data.url || '/' },
+    data: { url: notif.navigate || data.url || 'https://luftfemman.olacarlsson.com' },
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
