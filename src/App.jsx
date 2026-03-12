@@ -202,8 +202,19 @@ export default function App() {
       setPushState('error');
       return;
     }
+    if (Notification.permission === 'denied') {
+      setPushState('error');
+      setPushMsg('Blockerat i iOS-inställningar');
+      return;
+    }
     try {
-      // Anropa subscribe direkt utan setState dessförinnan — bryter annars iOS user gesture-kedjan
+      // Safari kräver requestPermission() FÖRST direkt i user gesture, innan subscribe()
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        setPushState('error');
+        setPushMsg('Notiser nekades');
+        return;
+      }
       const sub = await subscribePush();
       setPushState('pending');
       await saveSubscriptionToGist(sub.toJSON());

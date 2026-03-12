@@ -125,7 +125,7 @@ async function run() {
 
   for (const sub of subscriptions) {
     try {
-      await webpush.sendNotification(sub, payload);
+      await webpush.sendNotification(sub, payload, { headers: { 'Content-Type': 'application/notification+json' } });
       active.push(sub);
       console.log('Sent to', sub.endpoint.slice(-20));
     } catch (err) {
