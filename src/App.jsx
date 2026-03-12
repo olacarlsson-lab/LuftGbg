@@ -33,11 +33,11 @@ async function saveSubscriptionToGist(sub) {
 async function subscribePush() {
   const key = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
 
-  // Declarative Web Push (iOS 18.4+, iOS 26): window.pushManager utan service worker
-  if (window.pushManager) {
-    const existing = await window.pushManager.getSubscription();
+  // Declarative Web Push (iOS 18.4+, iOS 26): navigator.pushManager utan service worker
+  if (navigator.pushManager) {
+    const existing = await navigator.pushManager.getSubscription();
     if (existing) return existing;
-    return await window.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+    return await navigator.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
   }
 
   // Standard Web Push via service worker (äldre iOS, desktop)
