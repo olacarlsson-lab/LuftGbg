@@ -32,17 +32,21 @@ async function saveSubscriptionToGist(sub) {
 
 async function subscribePush() {
   const key = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+  const navPM = navigator.pushManager;
+  const winPM = window.pushManager;
+  const navSW = navigator.serviceWorker;
 
-  // Declarative Web Push (iOS 18.4+, iOS 26): navigator.pushManager utan service worker
-  if (navigator.pushManager) {
-    const existing = await navigator.pushManager.getSubscription();
+  // Declarative Web Push: prova navigator.pushManager och window.pushManager
+  const pm = navPM || winPM;
+  if (pm) {
+    const existing = await pm.getSubscription();
     if (existing) return existing;
-    return await navigator.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+    return await pm.subscribe({ userVisibleOnly: true, applicationServerKey: key });
   }
 
   // Standard Web Push via service worker (äldre iOS, desktop)
-  if (!navigator.serviceWorker) throw new Error('Push stöds inte på den här enheten');
-  const reg = await navigator.serviceWorker.ready;
+  if (!navSW) throw new Error(`Inget PM: nav=${!!navPM} win=${!!winPM} sw=${!!navSW}`);
+  const reg = await navSW.ready;
   const existing = await reg.pushManager.getSubscription();
   if (existing) return existing;
   return await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
