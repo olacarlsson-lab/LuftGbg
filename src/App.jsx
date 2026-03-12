@@ -199,9 +199,9 @@ export default function App() {
       return;
     }
     try {
-      // På iOS triggas notisbehörigheten av pushManager.subscribe(), inte requestPermission()
-      setPushState('pending');
+      // Anropa subscribe direkt utan setState dessförinnan — bryter annars iOS user gesture-kedjan
       const sub = await subscribePush();
+      setPushState('pending');
       await saveSubscriptionToGist(sub.toJSON());
       setPushState('on');
       setPushMsg('Notiser aktiverade!');
