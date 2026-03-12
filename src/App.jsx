@@ -202,8 +202,18 @@ export default function App() {
       setPushState('error');
       return;
     }
+    if ('Notification' in window && Notification.permission === 'denied') {
+      setPushState('error');
+      setPushMsg('Tillstånd blockerat – se instruktion nedan');
+      return;
+    }
     try {
-      // Declarative Web Push (iOS 26): subscribe() hanterar tillstånd direkt — hoppa över requestPermission
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        setPushState('error');
+        setPushMsg(`Notiser nekades (${permission})`);
+        return;
+      }
       const sub = await subscribePush();
       setPushState('pending');
       await saveSubscriptionToGist(sub.toJSON());
